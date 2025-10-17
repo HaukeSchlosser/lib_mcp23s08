@@ -7,13 +7,6 @@
 #include <sys/ioctl.h>
 #include <string.h>
 
-/**
- * @brief Opens and configures an SPI device file for MCP23S08 communication.
- *
- * @param bus   SPI bus number (0 or 1).
- * @param cs    Chip select line (0 or 1).
- * @return int  File descriptor for the opened SPI device, or -1 on failure.
- */
 int mcp23s08_init(uint8_t bus, uint8_t cs) {
     int fd;
 
@@ -65,15 +58,6 @@ int mcp23s08_init(uint8_t bus, uint8_t cs) {
     return fd;
 }
 
-/**
- * @brief Writes a byte of data to a specified register of the MCP23S08 via SPI.
- *
- * @param fd        File descriptor for the SPI device.
- * @param addr      MCP23S08 device address (3-bit hardware address).
- * @param reg       Register address to write to.
- * @param data      Byte of data to write.
- * @return int8_t   Returns 0 on success, or -1 on failure.
- */
 int8_t mcp23s08_write(int fd, uint8_t addr, uint8_t reg, uint8_t data) {
 
     if (fd <= 0) {
@@ -84,6 +68,12 @@ int8_t mcp23s08_write(int fd, uint8_t addr, uint8_t reg, uint8_t data) {
     if (addr > 0x07) {
         fprintf(stderr, "[mcp23s08_write] ERROR Invalid address: %u\n", addr);
         fprintf(stderr, "[mcp23s08_write] ERROR Expected range: 0x00 - 0x07\n");
+        return -1;
+    }
+
+    if (reg > 0x0A) {
+        fprintf(stderr, "[mcp23s08_write] ERROR Invalid register: 0x%02X\n", reg);
+        fprintf(stderr, "[mcp23s08_write] ERROR Expected range: 0x00 - 0x0A\n");
         return -1;
     }
 
@@ -100,15 +90,7 @@ int8_t mcp23s08_write(int fd, uint8_t addr, uint8_t reg, uint8_t data) {
     return 0;
 }
 
-/**
- * @brief Reads a byte from a specified register of the MCP23S08 via SPI.
- *
- * @param fd        File descriptor for the SPI device.
- * @param addr      MCP23S08 device address (3-bit hardware address).
- * @param reg       Register address to read from.
- * @return int8_t   The received byte from the SPI response, or -1 on failure.
- */
-int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg) {
+int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg, uint8_t silent) {
 
     if (fd <= 0) {
         fprintf(stderr, "[mcp23s08_read] ERROR Invalid file descriptor: %d\n", fd);
@@ -118,6 +100,18 @@ int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg) {
     if (addr > 0x07) {
         fprintf(stderr, "[mcp23s08_read] ERROR Invalid address: %u\n", addr);
         fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0x00 - 0x07\n");
+        return -1;
+    }
+
+    if (reg > 0x0A) {
+        fprintf(stderr, "[mcp23s08_read] ERROR Invalid register: 0x%02X\n", reg);
+        fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0x00 - 0x0A\n");
+        return -1;
+    }
+
+    if (silent > 1) {
+        fprintf(stderr, "[mcp23s08_read] ERROR Invalid silent parameter: %u\n", silent);
+        fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0 or 1\n");
         return -1;
     }
 
@@ -131,21 +125,36 @@ int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg) {
         return -1;
     }
 
+    if (!silent) {
+        printf("[mcp23s08_read] rx_buf[0] %d ...\n", rx_buf[0]);
+        printf("[mcp23s08_read] rx_buf[1] %d ...\n", rx_buf[1]);
+        printf("[mcp23s08_read] rx_buf[2] %d ...\n", rx_buf[2]);
+        printf("[mcp23s08_read] fd %d ...\n", fd);
+        printf("[mcp23s08_read] addr %d ...\n", addr);
+        printf("[mcp23s08_read] ctr_byte %d ...\n", addr);
+    }
+
     return rx_buf[2];
 }
 
-/**
- * @brief Writes a value to a specific pin of the MCP23S08 I/O expander.
- *
- * @param fd    The file descriptor for the SPI device.
- * @param addr  The 3-bit hardware address of the MCP23S08 (0x00 - 0x07).
- * @param reg   The register address to write to (e.g., GPIO register).
- * @param pin   The pin number to modify (0-7).
- * @param data  The value to write (0 to clear, 1 to set).
- *
- * @return      0 on success, or -1 on error.
- */
 int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_t data) {
+
+    if (fd <= 0) {
+        fprintf(stderr, "[mcp23s08_write_pin] ERROR Invalid file descriptor: %d\n", fd);
+        return -1;
+    }
+
+    if (addr > 0x07) {
+        fprintf(stderr, "[mcp23s08_write_pin] ERROR Invalid address: %u\n", addr);
+        fprintf(stderr, "[mcp23s08_write_pin] ERROR Expected range: 0x00 - 0x07\n");
+        return -1;
+    }
+
+    if (reg > 0x0A) {
+        fprintf(stderr, "[mcp23s08_write_pin] ERROR Invalid register: 0x%02X\n", reg);
+        fprintf(stderr, "[mcp23s08_write_pin] ERROR Expected range: 0x00 - 0x0A\n");
+        return -1;
+    }
 
     if (pin > 0x07) {
         fprintf(stderr, "[mcp23s08_write_pin] ERROR Invalid pin: %u\n", pin);
@@ -153,13 +162,7 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
         return -1;
     }
 
-    if (data > 1) {
-        fprintf(stderr, "[mcp23s08_write_pin] ERROR Invalid pin: %u\n", data);
-        fprintf(stderr, "[mcp23s08_write_pin] ERROR Expected range: 0x00 - 0x01\n");
-        return -1;  
-    }
-
-    int8_t reg_data = mcp23s08_read(fd, addr, reg);
+    int16_t reg_data = mcp23s08_read(fd, addr, reg, SILENT);
     if (reg_data < 0) {
         fprintf(stderr, "[mcp23s08_write_pin] ERROR: Failed to read register: 0x%02X\n", reg);
         return -1;
@@ -174,16 +177,6 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
     return mcp23s08_write(fd, addr, reg, reg_data);
 }
 
-/**
- * @brief Reads the state of a specific pin from the MCP23S08 I/O expander.
- *
- * @param fd    The file descriptor for the SPI device.
- * @param addr  The 3-bit hardware address of the MCP23S08 (0x00 - 0x07).
- * @param reg   The register address to read from (e.g., GPIO register).
- * @param pin   The pin number to read (0-7).
- *
- * @return      The state of the specified pin (0 or 1), or -1 on error.
- */
 int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin) {
 
     if (pin > 0x07) {
@@ -192,17 +185,9 @@ int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin) {
         return -1;
     }
 
-    return (mcp23s08_read(fd, addr, reg) >> pin) & 1;
+    return (mcp23s08_read(fd, addr, reg, NOT_SILENT) >> pin) & 1;
 }
 
-/**
- * @brief Configures the direction of GPIO pins on the MCP23S08.
- *
- * @param fd        File descriptor for the SPI device.
- * @param addr      MCP23S08 device address (3-bit hardware address).
- * @param pins      Bitmask specifying the new state for the selected pins (o = OUTPUT, 1 = INPUT).
- * @return uint8_t  Returns 0 on success, or -1 on failure.
- */
 int8_t mcp23s08_set_dir(int fd, uint8_t addr, uint8_t pins) {
 
     if (addr > 0x07) {
@@ -219,28 +204,11 @@ int8_t mcp23s08_set_dir(int fd, uint8_t addr, uint8_t pins) {
     return 0;
 }
 
-/**
- * @brief Generates the control byte for MCP23S08 SPI communication.
- *
- * @param cmd       The command bit (0 for write, 1 for read).
- * @param addr      The 3-bit hardware address of the MCP23S08 device.
- * @return uint8_t  The computed control byte for SPI communication.
- */
 static uint8_t get_control_byte(uint8_t cmd, uint8_t addr) {
-    uint8_t ctr_byte = 0x40 | (addr << 1) | cmd;
+    uint8_t ctr_byte = DEV_TYPE | (addr << 1) | cmd;
     return ctr_byte;
 }
 
-/**
- * @brief Performs an SPI transaction using SPI ioctl interface.
- *
- * @param fd        File descriptor for the SPI device.
- * @param tx_buf    Pointer to the transmit buffer (data to send).
- * @param rx_buf    Pointer to the receive buffer (data received).
- * @param len       Length of the data to be transmitted/received (in bytes).
- *
- * @return int      Returns 0 on success, or -1 if the ioctl call fails.
- */
 static int spi_transfer( int fd, uint8_t *tx_buf, uint8_t *rx_buf, unsigned int len) {
     struct spi_ioc_transfer spi;
     memset(&spi, 0, sizeof(spi));
