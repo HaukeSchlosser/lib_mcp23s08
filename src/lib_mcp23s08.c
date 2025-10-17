@@ -39,6 +39,7 @@ static int spi_transfer( int fd, uint8_t *tx_buf, uint8_t *rx_buf, unsigned int 
     spi.speed_hz = SPI_SPEED;
     spi.delay_usecs = SPI_DELAY;
     spi.bits_per_word = SPI_BPW;
+    spi.cs_change = SPI_CS_CHANGE;
     spi.word_delay_usecs = SPI_WDELAY;
 
     return ioctl(fd, SPI_IOC_MESSAGE(1), &spi);
@@ -168,12 +169,7 @@ int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg, uint8_t silent) {
     }
 
     if (!silent) {
-        printf("[mcp23s08_read] rx_buf[0] %d ...\n", rx_buf[0]);
-        printf("[mcp23s08_read] rx_buf[1] %d ...\n", rx_buf[1]);
-        printf("[mcp23s08_read] rx_buf[2] %d ...\n", rx_buf[2]);
-        printf("[mcp23s08_read] fd %d ...\n", fd);
-        printf("[mcp23s08_read] addr %d ...\n", addr);
-        printf("[mcp23s08_read] ctr_byte %d ...\n", ctr_byte);
+        printf("[mcp23s08_read] Data: %d ...\n", rx_buf[2]);
     }
 
     return rx_buf[2];
@@ -219,7 +215,7 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
     return mcp23s08_write(fd, addr, reg, reg_data);
 }
 
-int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin) {
+int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_t silent) {
 
     if (fd < 0) {
         fprintf(stderr, "[mcp23s08_read_pin] ERROR Invalid file descriptor: %d\n", fd);
@@ -244,7 +240,13 @@ int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin) {
         return -1;
     }
 
-    return (mcp23s08_read(fd, addr, reg, NOT_SILENT) >> pin) & 1;
+    uint16_t result = (mcp23s08_read(fd, addr, reg, SILENT) >> pin) & 1;
+
+    if (!silent) {
+        printf("[mcp23s08_read] Data: %d ...\n", result);
+    }
+
+    return result;
 }
 
 int8_t mcp23s08_set_dir(int fd, uint8_t addr, uint8_t pins) {

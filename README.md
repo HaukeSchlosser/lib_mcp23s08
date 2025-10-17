@@ -8,8 +8,8 @@ A very lightweight C/C++ library for interfacing with the **MCP23S08** (8-bit I/
 
 #### Clone the Repository
 ```sh
-git clone https://github.com/HaukeSchlosser/lib_mcp23s08.git
-cd lib_mcp23s08
+git clone https://github.com/your-repo/mcp23s08-lib.git
+cd mcp23s08-lib
 ```
 
 #### Compile
@@ -28,7 +28,7 @@ sudo make install
 
 #### Compile Program
 ```sh
-gcc  <program_name>.c -L/usr/local/lib -lmcp23s08 -o <program_name>
+gcc -I/usr/local/include <program_name>.c -L/usr/local/lib -lmcp23s08 -Wl,-rpath,/usr/local/lib -o <program_name>
 ```
 
 ---
@@ -54,7 +54,7 @@ make cleanall
 
 ### License
 
-This library is licensed under the GNU License.
+This library is licensed under the MIT License.
 
 ---
 
