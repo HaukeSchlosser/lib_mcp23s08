@@ -28,15 +28,16 @@ void testConfigure(int fd, uint8_t addr) {
 int main() {
     int fd;
 
-    if ((fd = mcp23s08_init(0, 0)) < 0) {
+    if ((fd = mcp23s08_init(0, 0, SPI_MODE_0)) < 0) {
         fprintf(stderr, "[main] Initialization failed\n");
+        close(fd);
         return 1;
     }
     
-    printf("[main] MCP23S08 initialized successfully with fd: %d\n", fd);
+    printf("[test_led_blink] MCP23S08 initialized successfully with fd: %d\n", fd);
 
-    printf("[main] Run test program...\n");
-    printf("[main] Press crtl + c to stop...\n");
+    printf("[test_led_blink] Run test program...\n");
+    printf("[test_led_blink] Press crtl + c to stop...\n");
 
     uint8_t addr = 0;
     testConfigure(fd, addr);

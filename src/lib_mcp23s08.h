@@ -3,12 +3,17 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // MCP23S08 SPI Defines
-#define SPI_MODE    0x00
+#define SPI_MODE_0  0x00
+#define SPI_MODE_3  0x03
 #define SPI_BPW     0x08
 #define SPI_DELAY   0x00
 #define SPI_WDELAY  0x00
-#define SPI_SPEED   0x186A0 // Supports up to 100000 Hz
+#define SPI_SPEED   0x186A0 /* 100000 Hz */
 
 // MCP23S08 Device Type
 #define DEV_TYPE    0x40
@@ -22,17 +27,17 @@
 #define READ_CMD    0x01
 
 // MCP23S08 Register Addresses
-#define IODIR       0x00 // I/O Direction Register
-#define IPOL        0x01 // Input Polarity Port Register
-#define GPINTEN     0x02 // Interrupt-on-Change Control Register
-#define DEFVAL      0x03 // Default Compare Register
-#define INTCON      0x04 // Interrupt Control Register
-#define IOCON       0x05 // Configuration Register
-#define GPPU        0x06 // Pull-up Resistor Register
-#define INTF        0x07 // Interrupt Flag Register
-#define INTCAP      0x08 // Interrupt Captured Register
-#define GPIO        0x09 // General Purpose I/O Register
-#define OLAT        0x0A // Output Latch Register
+#define IODIR       0x00
+#define IPOL        0x01
+#define GPINTEN     0x02
+#define DEFVAL      0x03
+#define INTCON      0x04
+#define IOCON       0x05
+#define GPPU        0x06
+#define INTF        0x07
+#define INTCAP      0x08
+#define GPIO        0x09
+#define OLAT        0x0A
 
 // MCP23S08 IODIR Bits
 #define IODIR_OUTPUT    0x00 // Pin is configured as output
@@ -63,7 +68,7 @@
 // MCP23S08 GPPU Bits
 #define GPPU_DISABLE    0x00 // Pull-up disabled
 #define GPPU_ENABLE     0x01 // Pull-up enabled
-// MCP23S08 INTF Bits   -- READ-ONLY
+// MCP23S08 INTF Bits -- READ-ONLY
 #define INTF_LOW        0x00 // Interrupt not pending
 #define INTF_HIGH       0x01 // Pin caused interrupt
 // MCP23S08 INTCAP Bits -- READ-ONLY
@@ -79,12 +84,13 @@
 /**
  * @brief Opens and configures an SPI device file for MCP23S08 communication.
  *
- * @param bus   SPI bus number (0 or 1).
- * @param cs    Chip select line (0 or 1).
+ * @param bus       SPI bus number (0 or 1).
+ * @param cs        Chip select line (0 or 1).
+ * @param spi_mode  SPI mode (SPI_MODE_0 or SPI_MODE_3).
  * 
- * @return int  File descriptor for the opened SPI device, or -1 on failure.
+ * @return int      File descriptor for the opened SPI device, or -1 on failure.
  */
-int mcp23s08_init(uint8_t bus, uint8_t cs);
+int mcp23s08_init(uint8_t bus, uint8_t cs, uint8_t spi_mode);
 
 /**
  * @brief Writes a byte of data to a specified register of the MCP23S08 via SPI.
@@ -106,7 +112,7 @@ int8_t mcp23s08_write(int fd, uint8_t addr, uint8_t reg, uint8_t data);
  * @param reg       Register address to read from.
  * @param silent    If 1, suppresses console output (0 or 1).
  * 
- * @return int8_t   The received byte from the SPI response, or -1 on failure.
+ * @return int16_t  The received byte from the SPI response, or -1 on failure.
  */
 int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg, uint8_t silent);
 
@@ -146,26 +152,8 @@ int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin);
  */
 int8_t mcp23s08_set_dir(int fd, uint8_t addr, uint8_t pins);
 
-/**
- * @brief Generates the control byte for MCP23S08 SPI communication.
- *
- * @param cmd       The command bit (0 for write, 1 for read).
- * @param addr      The 3-bit hardware address of the MCP23S08 device.
- * 
- * @return uint8_t  The computed control byte for SPI communication.
- */
-static uint8_t get_control_byte(uint8_t cmd, uint8_t addr);
+#ifdef __cplusplus
+}
+#endif
 
-/**
- * @brief Performs an SPI transaction using SPI ioctl interface.
- *
- * @param fd        File descriptor for the SPI device.
- * @param tx_buf    Pointer to the transmit buffer (data to send).
- * @param rx_buf    Pointer to the receive buffer (data received).
- * @param len       Length of the data to be transmitted/received (in bytes).
- *
- * @return int      Returns 0 on success, or -1 if the ioctl call fails.
- */
-static int spi_transfer( int fd, uint8_t *tx_buf, uint8_t *rx_buf, unsigned int len);
-
-#endif // MCP23S08_H
+#endif /* MCP23S08_H */
