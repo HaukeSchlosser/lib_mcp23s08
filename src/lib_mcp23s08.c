@@ -45,6 +45,87 @@ static int spi_transfer( int fd, uint8_t *tx_buf, uint8_t *rx_buf, unsigned int 
     return ioctl(fd, SPI_IOC_MESSAGE(1), &spi);
 }
 
+/*
+ * @brief Helper function to set IOCON register for interrupt configuration.
+ */
+static int set_iocon_for_interrupt(int fd, uint8_t addr) {
+    uint8_t iocon = 0;
+    iocon |= (SEQOP_DISABLE     << 5);
+    iocon |= (DISSLW_DISABLE    << 4);
+    iocon |= (HAEN_ENABLE       << 3);
+    iocon |= (ODR_ACTIVE_DRIV   << 2);
+    iocon |= (INTPOL_LOW        << 1);
+
+    return mcp23s08_write(fd, addr, IOCON, iocon) < 0 ? -1 : 0;
+}
+
+/*
+ * @brief Helper function to set specified pins as input and enable pull-ups.
+ */
+static int set_pins_input_and_pullups(int fd, uint8_t addr, uint8_t pins) {
+    int16_t r = mcp23s08_read(fd, addr, IODIR);
+    if (r < 0) return -1;
+
+    uint8_t iodir = (uint8_t)r | pins;
+    if (mcp23s08_write(fd, addr, IODIR, iodir) < 0) return -1;
+
+    r = mcp23s08_read(fd, addr, GPPU);
+    if (r < 0) return -1;
+    uint8_t gppu = (uint8_t)r | pins;
+    if (mcp23s08_write(fd, addr, GPPU, gppu) < 0) return -1;
+
+    return 0;
+}
+
+/*
+ * @brief Helper function to configure INTCON and DEFVAL registers for interrupts.
+ */
+static int configure_intcon_and_defval(int fd, uint8_t addr, uint8_t pins, uint8_t any_change) {
+    int16_t r = mcp23s08_read(fd, addr, INTCON);
+    if (r < 0) return -1;
+
+    uint8_t intcon = (uint8_t)r;
+    if (any_change == INT_ANY) {
+        intcon &= ~pins;
+        if (mcp23s08_write(fd, addr, INTCON, intcon) < 0) return -1;
+    } else {
+        intcon |= pins;
+        if (mcp23s08_write(fd, addr, INTCON, intcon) < 0) return -1;
+
+        r = mcp23s08_read(fd, addr, DEFVAL);
+        if (r < 0) return -1;
+        uint8_t defval = (uint8_t)r;
+        defval = (uint8_t)((defval & ~pins) | pins); /* original behaviour preserved */
+        if (mcp23s08_write(fd, addr, DEFVAL, defval) < 0) return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * @brief Helper function to update GPINTEN register for enabling/disabling interrupts.
+ */
+static int update_gpinten(int fd, uint8_t addr, uint8_t pins, uint8_t enable) {
+    int16_t r = mcp23s08_read(fd, addr, GPINTEN);
+    if (r < 0) return -1;
+
+    uint8_t gpinten = (uint8_t)r;
+    if (enable == INT_ENABLE) {
+        gpinten |= pins;
+    } else {
+        gpinten &= (uint8_t)~pins;
+    }
+
+    return mcp23s08_write(fd, addr, GPINTEN, gpinten) < 0 ? -1 : 0;
+}
+
+/*
+ * @brief Helper function to clear pending interrupts by reading INTCAP register.
+ */
+static int clear_pending_int(int fd, uint8_t addr) {
+    return mcp23s08_read(fd, addr, INTCAP) < 0 ? -1 : 0;
+}
+
 int mcp23s08_init(uint8_t bus, uint8_t cs, uint8_t spi_mode) {
     int fd;
 
@@ -108,9 +189,9 @@ int8_t mcp23s08_write(int fd, uint8_t addr, uint8_t reg, uint8_t data) {
         return -1;
     }
 
-    if (addr > 0x07) {
+    if (addr > 0x03) {
         fprintf(stderr, "[mcp23s08_write] ERROR Invalid address: %u\n", addr);
-        fprintf(stderr, "[mcp23s08_write] ERROR Expected range: 0x00 - 0x07\n");
+        fprintf(stderr, "[mcp23s08_write] ERROR Expected range: 0x00 - 0x03\n");
         return -1;
     }
 
@@ -133,28 +214,22 @@ int8_t mcp23s08_write(int fd, uint8_t addr, uint8_t reg, uint8_t data) {
     return 0;
 }
 
-int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg, uint8_t silent) {
+int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg) {
 
     if (fd < 0) {
         fprintf(stderr, "[mcp23s08_read] ERROR Invalid file descriptor: %d\n", fd);
         return -1;
     }
 
-    if (addr > 0x07) {
+    if (addr > 0x03) {
         fprintf(stderr, "[mcp23s08_read] ERROR Invalid address: %u\n", addr);
-        fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0x00 - 0x07\n");
+        fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0x00 - 0x03\n");
         return -1;
     }
 
     if (reg > 0x0A) {
         fprintf(stderr, "[mcp23s08_read] ERROR Invalid register: 0x%02X\n", reg);
         fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0x00 - 0x0A\n");
-        return -1;
-    }
-
-    if (silent > 1) {
-        fprintf(stderr, "[mcp23s08_read] ERROR Invalid silent parameter: %u\n", silent);
-        fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0 or 1\n");
         return -1;
     }
 
@@ -168,10 +243,6 @@ int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg, uint8_t silent) {
         return -1;
     }
 
-    if (!silent) {
-        printf("[mcp23s08_read] Data: %d ...\n", rx_buf[2]);
-    }
-
     return rx_buf[2];
 }
 
@@ -182,9 +253,9 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
         return -1;
     }
 
-    if (addr > 0x07) {
+    if (addr > 0x03) {
         fprintf(stderr, "[mcp23s08_write_pin] ERROR Invalid address: %u\n", addr);
-        fprintf(stderr, "[mcp23s08_write_pin] ERROR Expected range: 0x00 - 0x07\n");
+        fprintf(stderr, "[mcp23s08_write_pin] ERROR Expected range: 0x00 - 0x03\n");
         return -1;
     }
 
@@ -200,7 +271,7 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
         return -1;
     }
 
-    int16_t reg_data = mcp23s08_read(fd, addr, reg, SILENT);
+    int16_t reg_data = mcp23s08_read(fd, addr, reg);
     if (reg_data < 0) {
         fprintf(stderr, "[mcp23s08_write_pin] ERROR: Failed to read register: 0x%02X\n", reg);
         return -1;
@@ -215,16 +286,16 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
     return mcp23s08_write(fd, addr, reg, reg_data);
 }
 
-int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_t silent) {
+int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin) {
 
     if (fd < 0) {
         fprintf(stderr, "[mcp23s08_read_pin] ERROR Invalid file descriptor: %d\n", fd);
         return -1;
     }
 
-    if (addr > 0x07) {
+    if (addr > 0x03) {
         fprintf(stderr, "[mcp23s08_read_pin] ERROR Invalid address: %u\n", addr);
-        fprintf(stderr, "[mcp23s08_read_pin] ERROR Expected range: 0x00 - 0x07\n");
+        fprintf(stderr, "[mcp23s08_read_pin] ERROR Expected range: 0x00 - 0x03\n");
         return -1;
     }
 
@@ -240,11 +311,7 @@ int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_t
         return -1;
     }
 
-    uint16_t result = (mcp23s08_read(fd, addr, reg, SILENT) >> pin) & 1;
-
-    if (!silent) {
-        printf("[mcp23s08_read] Data: %d ...\n", result);
-    }
+    uint16_t result = (mcp23s08_read(fd, addr, reg) >> pin) & 1;
 
     return result;
 }
@@ -256,7 +323,7 @@ int8_t mcp23s08_set_dir(int fd, uint8_t addr, uint8_t pins) {
         return -1;
     }
 
-    if (addr > 0x07) {
+    if (addr > 0x03) {
         fprintf(stderr, "[mcp23s08_set_dir] ERROR Invalid address: %u\n", addr);
         fprintf(stderr, "[mcp23s08_set_dir] ERROR Expected range: 0x00 - 0x07\n");
         return -1;
@@ -264,6 +331,53 @@ int8_t mcp23s08_set_dir(int fd, uint8_t addr, uint8_t pins) {
 
     if ((mcp23s08_write(fd, addr, IODIR, pins)) < 0) {
         fprintf(stderr, "[mcp23s08_set_dir] ERROR Failed to write to device\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int8_t mcp23s08_enable_interrupt(int fd, uint8_t addr, uint8_t enable, uint8_t pins, uint8_t any_change) {
+
+    if (fd < 0) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Invalid file descriptor: %d\n", fd);
+        return -1;
+    }
+    if (addr > 0x03) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Invalid address: %u\n", addr);
+        return -1;
+    }
+    if (enable != 0 && enable != 1) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Invalid enable parameter: %u\n", enable);
+        return -1;
+    }
+    if (any_change != 0 && any_change != 1) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Invalid any_change parameter: %u\n", any_change);
+        return -1;
+    }
+
+    if (set_iocon_for_interrupt(fd, addr) < 0) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Failed to write to IOCON register\n");
+        return -1;
+    }
+
+    if (set_pins_input_and_pullups(fd, addr, pins) < 0) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Failed to set pins as input with pull-ups\n");
+        return -1;
+    }
+
+    if (configure_intcon_and_defval(fd, addr, pins, any_change) < 0) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Failed to configure INTCON/DEFVAL\n");
+        return -1;
+    }
+
+    if (update_gpinten(fd, addr, pins, enable) < 0) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Failed to update GPINTEN\n");
+        return -1;
+    }
+
+    if (clear_pending_int(fd, addr) < 0) {
+        fprintf(stderr, "[mcp23s08_enable_interrupt] ERROR Failed to clear pending interrupts\n");
         return -1;
     }
 

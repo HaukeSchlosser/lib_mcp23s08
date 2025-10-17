@@ -27,6 +27,14 @@ extern "C" {
 #define WRITE_CMD   0x00
 #define READ_CMD    0x01
 
+// Interrupt Enable Commands
+#define INT_DISABLE 0x00
+#define INT_ENABLE  0x01
+
+// Interrupt Trigger Commands
+#define INT_LOW     0x00
+#define INT_ANY     0x01
+
 // MCP23S08 Register Addresses
 #define IODIR       0x00
 #define IPOL        0x01
@@ -115,7 +123,7 @@ int8_t mcp23s08_write(int fd, uint8_t addr, uint8_t reg, uint8_t data);
  * 
  * @return int16_t  The received byte from the SPI response, or -1 on failure.
  */
-int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg, uint8_t silent);
+int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg);
 
 /**
  * @brief Writes a value to a specific pin of the MCP23S08 I/O expander.
@@ -140,7 +148,7 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
  *
  * @return      The state of the specified pin (0 or 1), or -1 on error.
  */
-int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_t silent);
+int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin);
 
 /**
  * @brief Configures the direction of GPIO pins on the MCP23S08.
@@ -152,6 +160,19 @@ int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_t
  * @return uint8_t  Returns 0 on success, or -1 on failure.
  */
 int8_t mcp23s08_set_dir(int fd, uint8_t addr, uint8_t pins);
+
+/*
+ * @brief Enables or disables interrupts on specified pins of the MCP23S08.
+ *
+ * @param fd            File descriptor for the SPI device.
+ * @param addr          MCP23S08 device address (3-bit hardware address).
+ * @param enable        Set to INT_ENABLE to enable interrupts, INT_DISABLE to disable.
+ * @param pins          Bitmask specifying which pins to configure for interrupts.
+ * @param any_change    Set to INT_ANY for any change trigger, INT_LOW for compare to DEFVAL.
+ * 
+ * @return int8_t       Returns 0 on success, or -1 on failure.
+ */
+int8_t mcp23s08_enable_interrupt(int fd, uint8_t addr, uint8_t enable, uint8_t pins, uint8_t any_change);
 
 #ifdef __cplusplus
 }
