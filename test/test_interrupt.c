@@ -55,14 +55,13 @@ int main() {
 
     while(1) {
         struct gpioevent_data ev;
-        ssize_t n = read(req.fd, &ev, sizeof(ev)); // blockiert bis Flanke
+        ssize_t n = read(req.fd, &ev, sizeof(ev));
         if (n != (ssize_t)sizeof(ev)) {
             if (n < 0) perror("read event");
             else fprintf(stderr, "short read on event fd\n");
             break;
         }
 
-        // WICHTIG: zuerst INTF (Ursache), dann INTCAP (quittiert + latched state)
         int16_t inf = mcp23s08_read(fd, addr, INTF);
         int16_t cap = mcp23s08_read(fd, addr, INTCAP);
         if (inf >= 0 && cap >= 0) {

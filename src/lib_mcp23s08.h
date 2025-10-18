@@ -8,20 +8,16 @@ extern "C" {
 #endif
 
 // MCP23S08 SPI Defines
-#define SPI_MODE_0      0x00
-#define SPI_MODE_3      0x03
 #define SPI_BPW         0x08
 #define SPI_DELAY       0x00
 #define SPI_WDELAY      0x00
 #define SPI_CS_CHANGE   0x00
 #define SPI_SPEED       0x186A0 /* 100000 Hz */
 
-// MCP23S08 Device Type
+// MCP23S08 Device
 #define DEV_TYPE    0x40
-
-// Console Output Control
-#define NOT_SILENT  0x00
-#define SILENT      0x01
+#define ADDR_NUM    0x07
+#define REG_NUM     0x0A
 
 // W/R Commands
 #define WRITE_CMD   0x00
@@ -151,7 +147,7 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
 int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin);
 
 /**
- * @brief Configures the direction of GPIO pins on the MCP23S08.
+ * @brief Configures the direction of ALL GPIO pins on the MCP23S08.
  *
  * @param fd        File descriptor for the SPI device.
  * @param addr      MCP23S08 device address (3-bit hardware address).

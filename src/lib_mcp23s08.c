@@ -56,7 +56,7 @@ static int set_iocon_for_interrupt(int fd, uint8_t addr) {
     iocon |= (ODR_ACTIVE_DRIV   << 2);
     iocon |= (INTPOL_LOW        << 1);
 
-    return mcp23s08_write(fd, addr, IOCON, iocon) < 0 ? -1 : 0;
+    return mcp23s08_write(fd, addr, IOCON, iocon);
 }
 
 /*
@@ -116,14 +116,14 @@ static int update_gpinten(int fd, uint8_t addr, uint8_t pins, uint8_t enable) {
         gpinten &= (uint8_t)~pins;
     }
 
-    return mcp23s08_write(fd, addr, GPINTEN, gpinten) < 0 ? -1 : 0;
+    return mcp23s08_write(fd, addr, GPINTEN, gpinten);
 }
 
 /*
  * @brief Helper function to clear pending interrupts by reading INTCAP register.
  */
 static int clear_pending_int(int fd, uint8_t addr) {
-    return mcp23s08_read(fd, addr, INTCAP) < 0 ? -1 : 0;
+    return mcp23s08_read(fd, addr, INTCAP);
 }
 
 int mcp23s08_init(uint8_t bus, uint8_t cs, uint8_t spi_mode) {
@@ -189,13 +189,13 @@ int8_t mcp23s08_write(int fd, uint8_t addr, uint8_t reg, uint8_t data) {
         return -1;
     }
 
-    if (addr > 0x03) {
+    if (addr > ADDR_NUM) {
         fprintf(stderr, "[mcp23s08_write] ERROR Invalid address: %u\n", addr);
         fprintf(stderr, "[mcp23s08_write] ERROR Expected range: 0x00 - 0x03\n");
         return -1;
     }
 
-    if (reg > 0x0A) {
+    if (reg > REG_NUM) {
         fprintf(stderr, "[mcp23s08_write] ERROR Invalid register: 0x%02X\n", reg);
         fprintf(stderr, "[mcp23s08_write] ERROR Expected range: 0x00 - 0x0A\n");
         return -1;
@@ -221,13 +221,13 @@ int16_t mcp23s08_read(int fd, uint8_t addr, uint8_t reg) {
         return -1;
     }
 
-    if (addr > 0x03) {
+    if (addr > ADDR_NUM) {
         fprintf(stderr, "[mcp23s08_read] ERROR Invalid address: %u\n", addr);
         fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0x00 - 0x03\n");
         return -1;
     }
 
-    if (reg > 0x0A) {
+    if (reg > REG_NUM) {
         fprintf(stderr, "[mcp23s08_read] ERROR Invalid register: 0x%02X\n", reg);
         fprintf(stderr, "[mcp23s08_read] ERROR Expected range: 0x00 - 0x0A\n");
         return -1;
@@ -253,13 +253,13 @@ int8_t mcp23s08_write_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin, uint8_
         return -1;
     }
 
-    if (addr > 0x03) {
+    if (addr > ADDR_NUM) {
         fprintf(stderr, "[mcp23s08_write_pin] ERROR Invalid address: %u\n", addr);
         fprintf(stderr, "[mcp23s08_write_pin] ERROR Expected range: 0x00 - 0x03\n");
         return -1;
     }
 
-    if (reg > 0x0A) {
+    if (reg > REG_NUM) {
         fprintf(stderr, "[mcp23s08_write_pin] ERROR Invalid register: 0x%02X\n", reg);
         fprintf(stderr, "[mcp23s08_write_pin] ERROR Expected range: 0x00 - 0x0A\n");
         return -1;
@@ -293,13 +293,13 @@ int8_t mcp23s08_read_pin(int fd, uint8_t addr, uint8_t reg, uint8_t pin) {
         return -1;
     }
 
-    if (addr > 0x03) {
+    if (addr > ADDR_NUM) {
         fprintf(stderr, "[mcp23s08_read_pin] ERROR Invalid address: %u\n", addr);
         fprintf(stderr, "[mcp23s08_read_pin] ERROR Expected range: 0x00 - 0x03\n");
         return -1;
     }
 
-    if (reg > 0x0A) {
+    if (reg > REG_NUM) {
         fprintf(stderr, "[mcp23s08_read_pin] ERROR Invalid register: 0x%02X\n", reg);
         fprintf(stderr, "[mcp23s08_read_pin] ERROR Expected range: 0x00 - 0x0A\n");
         return -1;
@@ -323,7 +323,7 @@ int8_t mcp23s08_set_dir(int fd, uint8_t addr, uint8_t pins) {
         return -1;
     }
 
-    if (addr > 0x03) {
+    if (addr > ADDR_NUM) {
         fprintf(stderr, "[mcp23s08_set_dir] ERROR Invalid address: %u\n", addr);
         fprintf(stderr, "[mcp23s08_set_dir] ERROR Expected range: 0x00 - 0x07\n");
         return -1;

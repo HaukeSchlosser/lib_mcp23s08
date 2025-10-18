@@ -1,6 +1,6 @@
 # MCP23S08 SPI Library
 
-A very lightweight C/C++ library for interfacing with the **MCP23S08** (8-bit I/O expander) via SPI.
+A lightweight C/C++ library for interfacing with the **MCP23S08** (8-bit I/O expander) via SPI.
 
 ---
 
